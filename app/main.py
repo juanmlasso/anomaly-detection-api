@@ -3,6 +3,7 @@ API REST principal para detección de anomalías en registros de acceso.
 Expone el endpoint /analyze que orquesta los agentes de ingestión y decisión.
 """
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from contextlib import asynccontextmanager

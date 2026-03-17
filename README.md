@@ -11,6 +11,8 @@ Módulo backend que utiliza modelos de IA (Isolation Forest) para la detección 
 - [Tecnologías](#-tecnologías)
 - [Instalación y Ejecución](#-instalación-y-ejecución)
 - [Uso de la API](#-uso-de-la-api)
+- [Aplicación en Funcionamiento](#-aplicación-en-funcionamiento)
+- [Dashboard de Monitoreo](#-dashboard-de-monitoreo)
 - [Dataset](#-dataset)
 - [Modelo de IA](#-modelo-de-ia)
 - [Tests](#-tests)
@@ -281,6 +283,51 @@ curl -X POST http://localhost:8000/analyze \
 
 ### Respuesta - Lote mixto
 ![Mixed](docs/images/mixed-batch.png)
+
+---
+
+## 📺 Dashboard de Monitoreo
+
+El proyecto incluye un **dashboard interactivo** (`dashboard.html`) que permite visualizar en tiempo real el funcionamiento de la API de detección de anomalías.
+
+### Cómo ejecutar el dashboard
+
+1. Asegúrese de que el servidor API esté corriendo:
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+2. Abra `dashboard.html` en su navegador:
+```bash
+# En Linux
+xdg-open dashboard.html
+
+# O simplemente abra el archivo desde el explorador de archivos
+```
+
+### Funcionalidades del dashboard
+
+- **Indicador de estado**: Muestra si la API está online u offline en tiempo real
+- **Pruebas rápidas con un clic**: 4 escenarios pre-configurados:
+  - Tráfico normal (GET legítimo)
+  - Tráfico anómalo (ataque con sqlmap)
+  - Lote mixto (normal + path traversal)
+  - Fuerza bruta (múltiples intentos de login)
+- **Estadísticas en vivo**: Total de registros, amenazas detectadas, tráfico seguro y porcentaje de amenazas
+- **Resumen de acciones**: Contadores visuales de BLOCK, ALERT, MONITOR y ALLOW
+- **Tabla de decisiones**: Detalle de cada registro con IP, usuario, endpoint, nivel de amenaza, acción sugerida, score de anomalía y razones
+- **Vista JSON cruda**: Respuesta completa de la API para inspección técnica
+
+### Capturas del dashboard
+
+#### Dashboard — Tráfico normal detectado (ALLOW)
+![Dashboard Normal](docs/images/dashboard-normal.png)
+
+#### Dashboard — Amenaza crítica detectada (BLOCK)
+![Dashboard Anomalous](docs/images/dashboard-anomalous.png)
+
+#### Dashboard — Lote mixto (ALLOW + BLOCK)
+![Dashboard Mixed](docs/images/dashboard-mixed.png)
 
 ---
 

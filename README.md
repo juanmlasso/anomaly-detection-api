@@ -268,6 +268,22 @@ curl -X POST http://localhost:8000/analyze \
 
 ---
 
+## 📸 Aplicación en Funcionamiento
+
+### Swagger UI
+![Swagger UI](docs/images/swagger-ui.png)
+
+### Respuesta - Tráfico normal (ALLOW)
+![Normal](docs/images/normal-traffic.png)
+
+### Respuesta - Tráfico anómalo (BLOCK)
+![Anomalous](docs/images/anomalous-traffic.png)
+
+### Respuesta - Lote mixto
+![Mixed](docs/images/mixed-batch.png)
+
+---
+
 ## 📊 Dataset
 
 Se utiliza un **dataset sintético** generado por `app/generate_dataset.py` que simula registros de acceso web con las siguientes características:

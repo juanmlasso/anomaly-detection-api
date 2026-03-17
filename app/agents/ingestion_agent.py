@@ -11,6 +11,8 @@ import os
 import numpy as np
 import pandas as pd
 import joblib
+from app.feature_engineer import FeatureEngineer
+from app.train_model import FeatureEngineer
 from typing import List, Dict, Any
 from pydantic import BaseModel
 
@@ -42,7 +44,7 @@ class IngestionAgent:
     """
 
     def __init__(self):
-        model_dir = os.path.join(os.path.dirname(__file__), "..", "models")
+        model_dir = os.path.join(os.path.dirname(__file__), "..", "..", "models")
         model_path = os.path.join(model_dir, "isolation_forest.joblib")
         fe_path = os.path.join(model_dir, "feature_engineer.joblib")
 

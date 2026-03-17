@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 
 from app.agents.ingestion_agent import IngestionAgent, LogRecord
 from app.agents.decision_agent import DecisionAgent, AnalysisSummary
-
+from app.train_model import FeatureEngineer
 
 # --- Modelos de Request/Response ---
 

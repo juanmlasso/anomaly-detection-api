@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anomaly Detection Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-dark: #0a0e17;
+  --bg-card: #111827;
+  --bg-card-hover: #1a2234;
+  --border: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-green: #22c55e;
+  --accent-green-bg: rgba(34,197,94,0.1);
+  --accent-red: #ef4444;
+  --accent-red-bg: rgba(239,68,68,0.1);
+  --accent-amber: #f59e0b;
+  --accent-amber-bg: rgba(245,158,11,0.1);
+  --accent-blue: #3b82f6;
+  --accent-blue-bg: rgba(59,130,246,0.1);
+  --accent-purple: #a855f7;
+  --accent-purple-bg: rgba(168,85,247,0.1);
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.noise {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.glow-orb {
+  position: fixed; width: 600px; height: 600px; border-radius: 50%;
+  filter: blur(120px); opacity: 0.07; pointer-events: none; z-index: 0;
+}
+.glow-orb.blue { background: #3b82f6; top: -200px; left: -200px; }
+.glow-orb.purple { background: #a855f7; bottom: -200px; right: -200px; }
+
+.container { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 24px; }
+
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--border);
+}
+.logo-area { display: flex; align-items: center; gap: 16px; }
+.logo-icon {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700; color: white;
+  box-shadow: 0 0 30px rgba(99,102,241,0.3);
+}
+h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+h1 span { color: var(--accent-blue); }
+.subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+.status-badge {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px; border-radius: 100px;
+  font-size: 13px; font-weight: 500; font-family: var(--font-mono);
+  border: 1px solid var(--border); background: var(--bg-card);
+}
+.status-dot { width: 8px; height: 8px; border-radius: 50%; }
+.status-dot.online { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); animation: pulse 2s infinite; }
+.status-dot.offline { background: var(--accent-red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+.grid-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 24px; }
+.stat-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 20px; transition: all 0.3s;
+}
+.stat-card:hover { border-color: var(--accent-blue); transform: translateY(-2px); }
+.stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.stat-value { font-size: 32px; font-weight: 800; font-family: var(--font-mono); letter-spacing: -1px; }
+.stat-value.green { color: var(--accent-green); }
+.stat-value.red { color: var(--accent-red); }
+.stat-value.amber { color: var(--accent-amber); }
+.stat-value.blue { color: var(--accent-blue); }
+
+.main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+.panel {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+  overflow: hidden;
+}
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+}
+.panel-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.panel-body { padding: 20px; }
+
+.test-buttons { display: flex; flex-direction: column; gap: 10px; }
+.test-btn {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--bg-card); color: var(--text-primary); cursor: pointer;
+  font-family: var(--font-sans); font-size: 14px; font-weight: 500;
+  transition: all 0.2s; text-align: left; width: 100%;
+}
+.test-btn:hover { border-color: var(--accent-blue); background: var(--bg-card-hover); transform: translateX(4px); }
+.test-btn:active { transform: translateX(2px); }
+.test-btn.loading { opacity: 0.6; pointer-events: none; }
+.test-btn .icon { font-size: 20px; }
+.test-btn .info { flex: 1; }
+.test-btn .info .name { margin-bottom: 2px; }
+.test-btn .info .desc { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+.test-btn .arrow { color: var(--text-muted); font-size: 18px; transition: transform 0.2s; }
+.test-btn:hover .arrow { transform: translateX(4px); color: var(--accent-blue); }
+
+.results-panel { grid-column: 1 / -1; }
+
+.result-section { margin-bottom: 20px; }
+.result-section:last-child { margin-bottom: 0; }
+.result-section-title { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+
+.actions-bar { display: flex; gap: 12px; flex-wrap: wrap; }
+.action-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 600;
+  font-family: var(--font-mono);
+}
+.action-chip.block { background: var(--accent-red-bg); color: var(--accent-red); border: 1px solid rgba(239,68,68,0.2); }
+.action-chip.alert { background: var(--accent-amber-bg); color: var(--accent-amber); border: 1px solid rgba(245,158,11,0.2); }
+.action-chip.monitor { background: var(--accent-blue-bg); color: var(--accent-blue); border: 1px solid rgba(59,130,246,0.2); }
+.action-chip.allow { background: var(--accent-green-bg); color: var(--accent-green); border: 1px solid rgba(34,197,94,0.2); }
+.action-count { font-size: 18px; font-weight: 800; }
+
+.decisions-table { width: 100%; border-collapse: collapse; }
+.decisions-table th {
+  text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2);
+}
+.decisions-table td {
+  padding: 12px 14px; font-size: 13px; border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono); vertical-align: top;
+}
+.decisions-table tr:hover { background: var(--bg-card-hover); }
+.decisions-table tr:last-child td { border-bottom: none; }
+
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+}
+.badge.critical { background: var(--accent-red-bg); color: var(--accent-red); }
+.badge.high { background: var(--accent-red-bg); color: var(--accent-red); }
+.badge.medium { background: var(--accent-amber-bg); color: var(--accent-amber); }
+.badge.low { background: var(--accent-blue-bg); color: var(--accent-blue); }
+.badge.none { background: var(--accent-green-bg); color: var(--accent-green); }
+
+.reasons-list { list-style: none; padding: 0; margin: 4px 0 0; }
+.reasons-list li { font-size: 11px; color: var(--text-secondary); padding: 2px 0; font-family: var(--font-sans); }
+.reasons-list li::before { content: "→ "; color: var(--text-muted); }
+
+.empty-state {
+  text-align: center; padding: 60px 20px; color: var(--text-muted);
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
+.empty-state p { font-size: 14px; }
+
+.json-viewer {
+  background: rgba(0,0,0,0.3); border-radius: 10px; padding: 16px;
+  font-family: var(--font-mono); font-size: 12px; color: var(--accent-green);
+  max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+  border: 1px solid var(--border); line-height: 1.6;
+}
+.json-viewer::-webkit-scrollbar { width: 6px; }
+.json-viewer::-webkit-scrollbar-track { background: transparent; }
+.json-viewer::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.tab-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); padding: 0 20px; }
+.tab {
+  padding: 12px 20px; font-size: 13px; font-weight: 500; color: var(--text-muted);
+  cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;
+  background: none; border-top: none; border-left: none; border-right: none;
+  font-family: var(--font-sans);
+}
+.tab:hover { color: var(--text-secondary); }
+.tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.api-url {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border-radius: 8px; background: rgba(0,0,0,0.3);
+  font-family: var(--font-mono); font-size: 12px; color: var(--accent-purple);
+  border: 1px solid var(--border);
+}
+
+@keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.fade-in { animation: fadeIn 0.4s ease; }
+
+@keyframes slideIn { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:translateX(0)} }
+.slide-in { animation: slideIn 0.3s ease; }
+
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent-blue); border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+@media (max-width: 768px) {
+  .grid-stats { grid-template-columns: repeat(2,1fr); }
+  .main-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="noise"></div>
+<div class="glow-orb blue"></div>
+<div class="glow-orb purple"></div>
+
+<div class="container">
+  <header>
+    <div class="logo-area">
+      <div class="logo-icon">AD</div>
+      <div>
+        <h1>Anomaly <span>Detection</span> Dashboard</h1>
+        <div class="subtitle">Sistema de detección de amenazas en registros de acceso</div>
+      </div>
+    </div>
+    <div class="status-badge" id="statusBadge">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Verificando...</span>
+    </div>
+  </header>
+
+  <div class="grid-stats">
+    <div class="stat-card">
+      <div class="stat-label">Registros analizados</div>
+      <div class="stat-value blue" id="statTotal">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Amenazas detectadas</div>
+      <div class="stat-value red" id="statThreats">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Tráfico seguro</div>
+      <div class="stat-value green" id="statSafe">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">% amenazas</div>
+      <div class="stat-value amber" id="statPercent">—</div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">&#9889; Pruebas rápidas</div>
+        <div class="api-url">POST /analyze</div>
+      </div>
+      <div class="panel-body">
+        <div class="test-buttons">
+          <button class="test-btn" onclick="runTest('normal')">
+            <span class="icon">&#128994;</span>
+            <div class="info">
+              <div class="name">Tráfico normal</div>
+              <div class="desc">GET /api/products · 200 · 5 rpm</div>
+            </div>
+            <span class="arrow">&rarr;</span>
+          </button>
+          <button class="test-btn" onclick="runTest('anomalous')">
+            <span class="icon">&#128308;</span>
+            <div class="info">
+              <div class="name">Tráfico anómalo</div>
+              <div class="desc">DELETE /admin/users/delete · 403 · sqlmap</div>
+            </div>
+            <span class="arrow">&rarr;</span>
+          </button>
+          <button class="test-btn" onclick="runTest('mixed')">
+            <span class="icon">&#128992;</span>
+            <div class="info">
+              <div class="name">Lote mixto</div>
+              <div class="desc">2 registros: normal + path traversal</div>
+            </div>
+            <span class="arrow">&rarr;</span>
+          </button>
+          <button class="test-btn" onclick="runTest('bruteforce')">
+            <span class="icon">&#128993;</span>
+            <div class="info">
+              <div class="name">Fuerza bruta</div>
+              <div class="desc">POST /login · 401 · 200 rpm · curl</div>
+            </div>
+            <span class="arrow">&rarr;</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">&#128202; Resumen de acciones</div>
+      </div>
+      <div class="panel-body">
+        <div class="actions-bar" id="actionsBar">
+          <div class="empty-state" style="width:100%">
+            <p>Ejecuta una prueba para ver resultados</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel results-panel">
+      <div class="tab-bar">
+        <button class="tab active" onclick="switchTab('visual')">Decisiones</button>
+        <button class="tab" onclick="switchTab('json')">JSON crudo</button>
+      </div>
+      <div class="tab-content active" id="tab-visual">
+        <div class="panel-body">
+          <div id="decisionsArea">
+            <div class="empty-state">
+              <div class="icon">&#128270;</div>
+              <p>Selecciona una prueba para analizar registros de acceso</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tab-content" id="tab-json">
+        <div class="panel-body">
+          <div class="json-viewer" id="jsonViewer">// La respuesta JSON aparecerá aquí</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = 'http://localhost:8000';
+
+const TEST_PAYLOADS = {
+  normal: {
+    records: [{
+      timestamp: "2025-03-01T14:30:00", ip_address: "192.168.1.100", user: "user_12",
+      method: "GET", endpoint: "/api/products", status_code: 200,
+      response_bytes: 1500, requests_per_minute: 5,
+      user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    }]
+  },
+  anomalous: {
+    records: [{
+      timestamp: "2025-03-01T03:15:00", ip_address: "10.0.45.12", user: "user_3",
+      method: "DELETE", endpoint: "/admin/users/delete", status_code: 403,
+      response_bytes: 0, requests_per_minute: 150, user_agent: "sqlmap/1.7"
+    }]
+  },
+  mixed: {
+    records: [
+      {
+        timestamp: "2025-03-01T10:00:00", ip_address: "192.168.1.50", user: "user_20",
+        method: "GET", endpoint: "/home", status_code: 200,
+        response_bytes: 2000, requests_per_minute: 3,
+        user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+      },
+      {
+        timestamp: "2025-03-01T02:45:00", ip_address: "10.0.100.5", user: "user_1",
+        method: "PUT", endpoint: "/api/../etc/passwd", status_code: 500,
+        response_bytes: 200000, requests_per_minute: 300, user_agent: "nikto/2.5.0"
+      }
+    ]
+  },
+  bruteforce: {
+    records: [{
+      timestamp: "2025-03-01T04:20:00", ip_address: "10.0.200.33", user: "user_5",
+      method: "POST", endpoint: "/login", status_code: 401,
+      response_bytes: 30, requests_per_minute: 200, user_agent: "curl/7.88.1"
+    }]
+  }
+};
+
+async function checkHealth() {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  try {
+    const r = await fetch(API_BASE + '/health');
+    const d = await r.json();
+    if (d.status === 'healthy') {
+      dot.className = 'status-dot online';
+      text.textContent = 'API Online';
+    } else {
+      dot.className = 'status-dot offline';
+      text.textContent = 'API Error';
+    }
+  } catch {
+    dot.className = 'status-dot offline';
+    text.textContent = 'API Offline';
+  }
+}
+
+async function runTest(type) {
+  const btns = document.querySelectorAll('.test-btn');
+  btns.forEach(b => b.classList.add('loading'));
+
+  try {
+    const r = await fetch(API_BASE + '/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(TEST_PAYLOADS[type])
+    });
+    const data = await r.json();
+    updateDashboard(data);
+    document.getElementById('jsonViewer').textContent = JSON.stringify(data, null, 2);
+  } catch (e) {
+    document.getElementById('decisionsArea').innerHTML =
+      '<div class="empty-state"><div class="icon">&#9888;</div><p>Error conectando con la API. Verifica que el servidor esté corriendo en localhost:8000</p></div>';
+  } finally {
+    btns.forEach(b => b.classList.remove('loading'));
+  }
+}
+
+function updateDashboard(data) {
+  document.getElementById('statTotal').textContent = data.total_records;
+  document.getElementById('statThreats').textContent = data.threats_detected;
+  document.getElementById('statSafe').textContent = data.total_records - data.threats_detected;
+  document.getElementById('statPercent').textContent = data.threat_percentage + '%';
+
+  const actions = data.actions_summary;
+  document.getElementById('actionsBar').innerHTML = `
+    <div class="action-chip block fade-in"><span class="action-count">${actions.BLOCK || 0}</span> BLOCK</div>
+    <div class="action-chip alert fade-in"><span class="action-count">${actions.ALERT || 0}</span> ALERT</div>
+    <div class="action-chip monitor fade-in"><span class="action-count">${actions.MONITOR || 0}</span> MONITOR</div>
+    <div class="action-chip allow fade-in"><span class="action-count">${actions.ALLOW || 0}</span> ALLOW</div>
+  `;
+
+  let html = `<table class="decisions-table"><thead><tr>
+    <th>IP</th><th>Usuario</th><th>Endpoint</th><th>Nivel</th><th>Acción</th><th>Score</th><th>Razones</th>
+  </tr></thead><tbody>`;
+
+  data.all_decisions.forEach((d, i) => {
+    const lvl = d.threat_level.toLowerCase();
+    const act = d.suggested_action;
+    const actClass = act === 'BLOCK' ? 'block' : act === 'ALERT' ? 'alert' : act === 'MONITOR' ? 'monitor' : 'allow';
+    html += `<tr class="slide-in" style="animation-delay:${i*80}ms">
+      <td>${d.ip_address}</td>
+      <td>${d.user}</td>
+      <td style="color:${d.is_threat ? 'var(--accent-red)' : 'var(--accent-green)'}">${d.endpoint}</td>
+      <td><span class="badge ${lvl}">${d.threat_level}</span></td>
+      <td><span class="badge ${actClass}" style="background:${actClass==='block'?'var(--accent-red-bg)':actClass==='alert'?'var(--accent-amber-bg)':actClass==='monitor'?'var(--accent-blue-bg)':'var(--accent-green-bg)'}">${act}</span></td>
+      <td style="color:${d.anomaly_score < 0 ? 'var(--accent-red)' : 'var(--accent-green)'}">${d.anomaly_score.toFixed(4)}</td>
+      <td><ul class="reasons-list">${d.reasons.map(r => `<li>${r}</li>`).join('')}</ul></td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('decisionsArea').innerHTML = html;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+checkHealth();
+setInterval(checkHealth, 10000);
+</script>
+</body>
+</html>

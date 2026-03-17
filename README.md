@@ -119,7 +119,7 @@ El sistema sigue una arquitectura de **pipeline de agentes**:
 
 ```bash
 # Clonar repositorio
-git clone <repo-url>
+git clone https://github.com/juanmlasso/anomaly-detection-api.git
 cd anomaly-detection-api
 
 # Construir y ejecutar
@@ -132,7 +132,7 @@ docker-compose up --build
 
 ```bash
 # Clonar repositorio
-git clone <repo-url>
+git clone https://github.com/juanmlasso/anomaly-detection-api.git
 cd anomaly-detection-api
 
 # Crear entorno virtual (recomendado)

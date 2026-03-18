@@ -267,6 +267,9 @@ curl -X POST http://localhost:8000/analyze \
 | GET | `/docs` | Documentación Swagger UI |
 | GET | `/redoc` | Documentación ReDoc |
 | POST | `/analyze` | Análisis de registros |
+| GET | `/dataset/sample?count=50&offset=0` | Muestra de registros del dataset con etiquetas |
+| GET | `/dataset/stats` | Estadísticas del dataset (métodos, códigos, endpoints) |
+| GET | `/dashboard` | Dashboard interactivo de monitoreo |
 
 ---
 
@@ -288,46 +291,65 @@ curl -X POST http://localhost:8000/analyze \
 
 ## 📺 Dashboard de Monitoreo
 
-El proyecto incluye un **dashboard interactivo** (`dashboard.html`) que permite visualizar en tiempo real el funcionamiento de la API de detección de anomalías.
+El proyecto incluye un **dashboard interactivo** (`dashboard.html`) que permite visualizar en tiempo real el funcionamiento de la API de detección de anomalías. Se sirve directamente desde la API.
 
-### Cómo ejecutar el dashboard
+### Cómo acceder al dashboard
 
 1. Asegúrese de que el servidor API esté corriendo:
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-2. Abra `dashboard.html` en su navegador:
-```bash
-# En Linux
-xdg-open dashboard.html
-
-# O simplemente abra el archivo desde el explorador de archivos
+2. Abra en su navegador:
+```
+http://localhost:8000/dashboard
 ```
 
-### Funcionalidades del dashboard
+### Secciones del dashboard
 
-- **Indicador de estado**: Muestra si la API está online u offline en tiempo real
-- **Pruebas rápidas con un clic**: 4 escenarios pre-configurados:
-  - Tráfico normal (GET legítimo)
-  - Tráfico anómalo (ataque con sqlmap)
-  - Lote mixto (normal + path traversal)
-  - Fuerza bruta (múltiples intentos de login)
-- **Estadísticas en vivo**: Total de registros, amenazas detectadas, tráfico seguro y porcentaje de amenazas
-- **Resumen de acciones**: Contadores visuales de BLOCK, ALERT, MONITOR y ALLOW
-- **Tabla de decisiones**: Detalle de cada registro con IP, usuario, endpoint, nivel de amenaza, acción sugerida, score de anomalía y razones
-- **Vista JSON cruda**: Respuesta completa de la API para inspección técnica
+#### 1. Pruebas rápidas
+Panel principal con 6 escenarios de prueba pre-configurados que se ejecutan con un clic:
+
+| Escenario | Descripción | Resultado esperado |
+|---|---|---|
+| Tráfico normal | GET /api/products · 200 · 5 rpm | ALLOW |
+| Ataque SQLMap | DELETE /admin/users/delete · 403 · sqlmap | BLOCK |
+| Lote mixto | Normal + path traversal | ALLOW + BLOCK |
+| Fuerza bruta | POST /login · 401 · 200 rpm · curl | BLOCK |
+| Scanner Nikto | PUT /etc/passwd · 500 · nikto | BLOCK |
+| Exfiltración datos | GET /admin/export · 200 · 450KB · python-requests | ALERT/BLOCK |
+
+Incluye: estadísticas en tiempo real, gráfico de dona con distribución de acciones, tabla de decisiones con razones detalladas, y vista JSON cruda.
+
+#### 2. Explorar dataset
+Navegador interactivo de los 2000 registros del dataset (`access_logs.csv`) con:
+- Paginación y filtros (todos / solo normales / solo anomalías)
+- Etiquetas reales visibles (NORMAL / ANOMALÍA)
+- Botón **"Analizar con IA"**: envía N registros del dataset real al endpoint `/analyze` y muestra los resultados del modelo vs. las etiquetas reales
+
+#### 3. Análisis en lote
+Editor JSON donde se pueden pegar registros personalizados para analizar a demanda. Incluye un ejemplo pre-cargado con 4 registros mixtos.
+
+#### 4. Estadísticas del dataset
+Gráficos generados con Chart.js que muestran:
+- Distribución de métodos HTTP (GET, POST, DELETE, etc.)
+- Distribución de códigos de estado HTTP
+- Top 10 endpoints más accedidos
+- Proporción Normal vs. Anomalía en el dataset
 
 ### Capturas del dashboard
 
-#### Dashboard — Tráfico normal detectado (ALLOW)
-![Dashboard Normal](docs/images/dashboard-normal.png)
+#### Dashboard — Pruebas rápidas
+![Dashboard Pruebas](docs/images/dashboard-pruebas.png)
 
-#### Dashboard — Amenaza crítica detectada (BLOCK)
-![Dashboard Anomalous](docs/images/dashboard-anomalous.png)
+#### Dashboard — Explorador del dataset
+![Dashboard Dataset](docs/images/dashboard-dataset.png)
 
-#### Dashboard — Lote mixto (ALLOW + BLOCK)
-![Dashboard Mixed](docs/images/dashboard-mixed.png)
+#### Dashboard — Análisis en lote
+![Dashboard Batch](docs/images/dashboard-batch.png)
+
+#### Dashboard — Estadísticas
+![Dashboard Stats](docs/images/dashboard-stats.png)
 
 ---
 
@@ -409,6 +431,7 @@ anomaly-detection-api/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py                  # FastAPI app + endpoint /analyze
+│   ├── feature_engineer.py      # Feature engineering (módulo separado)
 │   ├── generate_dataset.py      # Generador de dataset sintético
 │   ├── train_model.py           # Pipeline de entrenamiento del modelo
 │   └── agents/
@@ -422,6 +445,9 @@ anomaly-detection-api/
 │   └── feature_engineer.joblib  # Feature engineer serializado
 ├── tests/
 │   └── test_api.py              # Tests de la API
+├── docs/
+│   └── images/                  # Screenshots de la aplicación
+├── dashboard.html               # Dashboard interactivo de monitoreo
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt

@@ -7,10 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from contextlib import asynccontextmanager
+import os
 
 from app.agents.ingestion_agent import IngestionAgent, LogRecord
 from app.agents.decision_agent import DecisionAgent, AnalysisSummary
-from app.train_model import FeatureEngineer
+
 
 # --- Modelos de Request/Response ---
 
@@ -116,6 +117,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/", tags=["Health"])
 async def root():
     """Endpoint de estado del servicio."""
@@ -214,3 +216,51 @@ async def analyze_logs(request: AnalyzeRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en el análisis: {str(e)}")
+
+
+@app.get("/dataset/sample", tags=["Dataset"])
+async def get_dataset_sample(count: int = 10, offset: int = 0):
+    """Retorna una muestra del dataset de registros de acceso."""
+    import pandas as pd
+    data_path = os.path.join(os.path.dirname(__file__), "..", "data", "access_logs.csv")
+    if not os.path.exists(data_path):
+        raise HTTPException(status_code=404, detail="Dataset no encontrado.")
+    df = pd.read_csv(data_path)
+    df = df.fillna("")
+    total = len(df)
+    subset = df.iloc[offset:offset + count]
+    records = subset.drop(columns=["is_anomaly"], errors="ignore").to_dict(orient="records")
+    labels = [int(x) for x in subset["is_anomaly"].tolist()] if "is_anomaly" in subset.columns else []
+    return {"total": total, "offset": offset, "count": len(records), "records": records, "labels": labels}
+
+
+@app.get("/dataset/stats", tags=["Dataset"])
+async def get_dataset_stats():
+    """Retorna estadísticas del dataset."""
+    import pandas as pd
+    data_path = os.path.join(os.path.dirname(__file__), "..", "data", "access_logs.csv")
+    if not os.path.exists(data_path):
+        raise HTTPException(status_code=404, detail="Dataset no encontrado.")
+    df = pd.read_csv(data_path)
+    df = df.fillna("")
+    return {
+        "total_records": int(len(df)),
+        "anomalies": int(df["is_anomaly"].sum()),
+        "normal": int((df["is_anomaly"] == 0).sum()),
+        "anomaly_rate": round(float(df["is_anomaly"].mean() * 100), 2),
+        "methods": {str(k): int(v) for k, v in df["method"].value_counts().items()},
+        "status_codes": {str(k): int(v) for k, v in df["status_code"].value_counts().items()},
+        "top_endpoints": {str(k): int(v) for k, v in df["endpoint"].value_counts().head(10).items()},
+    }
+
+
+# Servir el dashboard
+from fastapi.responses import FileResponse
+
+@app.get("/dashboard", tags=["Dashboard"])
+async def serve_dashboard():
+    """Sirve el dashboard interactivo."""
+    dashboard_path = os.path.join(os.path.dirname(__file__), "..", "dashboard.html")
+    if not os.path.exists(dashboard_path):
+        raise HTTPException(status_code=404, detail="Dashboard no encontrado.")
+    return FileResponse(dashboard_path, media_type="text/html")
